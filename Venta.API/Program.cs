@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Steeltoe.Extensions.Configuration.ConfigServer;
 using Venta.Api.Middleware;
 using Venta.API.Configurations;
@@ -31,7 +32,24 @@ var connectionString = builder.Configuration["dbVenta-cnx"];
 builder.Services.AddInfraestructure(builder.Configuration);
 builder.Services.AddAthenticationByJWT(builder.Configuration);
 builder.Services.AddHealthCheckConfiguration(builder.Configuration);
+//Rate limit
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddFixedWindowLimiter("AuthPolicy", configure =>
+    {
+        configure.PermitLimit = 5;
+        configure.Window = TimeSpan.FromMinutes(1);
+        configure.QueueLimit = 0;
+    });
 
+    options.AddSlidingWindowLimiter("ApiPolicy", configure =>
+    {
+        configure.PermitLimit = 100;
+        configure.Window = TimeSpan.FromMinutes(1);
+        configure.SegmentsPerWindow = 4;
+    });
+});
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -42,7 +60,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseHealthCheckConfiguration();
