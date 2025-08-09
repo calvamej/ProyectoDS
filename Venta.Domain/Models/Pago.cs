@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Venta.Domain.Models
+﻿namespace Venta.Domain.Models
 {
     public class Pago
     {
@@ -18,7 +12,7 @@ namespace Venta.Domain.Models
             }
             private set { }
         }
-        public decimal Monto{ get; set; }
+        public decimal Monto { get; set; }
         public int FormaPago { get; set; }
         public string? NumeroTarjeta { get; set; }
         public DateTime? FechaVencimiento { get; set; }

@@ -6,10 +6,10 @@ namespace Venta.API.Security
 {
     public static class AuthenticationService
     {
-        public static void AddAthenticationByJWT(
-            this IServiceCollection services)
+        public static void AddAthenticationByJWT(this IServiceCollection services, IConfiguration configuration)
         {
-            var key = Encoding.ASCII.GetBytes("TomaPedidos9669ass969dd9ffg6g9hh935434235433");
+            //var key = Encoding.ASCII.GetBytes("TomaPedidos9669ass969dd9ffg6g9hh935434235433");
+            var key = Encoding.ASCII.GetBytes(configuration["KEY-JWT"]);
 
             services.AddAuthentication(x =>
             {
@@ -27,7 +27,6 @@ namespace Venta.API.Security
                         ValidateIssuer = false,
                         ValidateAudience = false
                     };
-
                 });
         }
     }

@@ -29,7 +29,7 @@ builder.Configuration.AddAKeyVault(builder.Configuration);
 //var connectionString = builder.Configuration.GetConnectionString("dbVenta-cnx");
 var connectionString = builder.Configuration["dbVenta-cnx"];
 builder.Services.AddInfraestructure(builder.Configuration);
-builder.Services.AddAthenticationByJWT();
+builder.Services.AddAthenticationByJWT(builder.Configuration);
 builder.Services.AddHealthCheckConfiguration(builder.Configuration);
 
 var app = builder.Build();

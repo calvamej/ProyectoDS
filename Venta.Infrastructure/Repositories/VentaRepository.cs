@@ -1,9 +1,7 @@
-﻿using SharpCompress.Common;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Dapper;
+using Microsoft.EntityFrameworkCore;
+using System.Data;
+using Venta.Domain.Models;
 using Venta.Domain.Repositories;
 using Venta.Infrastructure.Repositories.Base;
 
@@ -29,6 +27,15 @@ namespace Venta.Infrastructure.Repositories
             {
                 return false;
             }
+        }
+
+
+        public async Task<IEnumerable<Pago>> Get()
+        {
+            return await _context.Database.GetDbConnection().QueryAsync<Pago>(
+                "GetPagos",
+                commandType: CommandType.StoredProcedure
+            );
         }
     }
 }

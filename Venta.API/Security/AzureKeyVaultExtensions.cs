@@ -8,10 +8,10 @@
     {
         public static IConfigurationBuilder AddAKeyVault(this IConfigurationBuilder configure, IConfiguration configuration)
         {
-            var vAkvUri = new Uri($"{configuration["KeyVault:VaultURI"]}");
-            string vTenantId = configuration["KeyVault:DirectoryTenantID"];
-            string vApplicationClientId = configuration["KeyVault:ApplicationClientID"];
-            string vClientSecret = configuration["KeyVault:MyClientSecretForWebApiValue"];
+            var vAkvUri = new Uri($"{configuration["VaultURI"]}");
+            string vTenantId = configuration["DirectoryTenantID"];
+            string vApplicationClientId = configuration["ApplicationClientID"];
+            string vClientSecret = configuration["MyWebApiValue"];
 
             var vCredential = new ClientSecretCredential(vTenantId, vApplicationClientId, vClientSecret);
             var vClient = new SecretClient(vAkvUri, vCredential);

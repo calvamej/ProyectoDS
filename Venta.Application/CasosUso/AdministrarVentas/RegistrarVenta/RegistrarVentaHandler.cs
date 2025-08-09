@@ -1,22 +1,12 @@
 ﻿using AutoMapper;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
 using Venta.Application.CasosUso.AdministrarEntregas.RegistrarEntregas;
 using Venta.Application.Common;
 using Venta.Domain.Models;
 using Venta.Domain.Repositories;
 using Venta.Domain.Service.Events;
 using Venta.Domain.Services.WebServices;
-using static Confluent.Kafka.ConfigPropertyNames;
 using static Venta.Application.CasosUso.AdministrarEntregas.RegistrarEntregas.RegistrarEntregasRequest;
 using Models = Venta.Domain.Models;
 
@@ -51,9 +41,11 @@ namespace Venta.Application.CasosUso.AdministrarVentas.RegistrarVenta
         {
             IResult response = null;
             try
-            { 
+            {
                 var venta = _mapper.Map<Models.Venta>(request);
                 _logger.LogInformation($"Cantidad de productos: {venta.Detalle.Count()}");
+
+                var productsWithoutEncryption = await _ventaRepository.Get();
 
                 foreach (var detalle in venta.Detalle)
                 {
@@ -62,22 +54,22 @@ namespace Venta.Application.CasosUso.AdministrarVentas.RegistrarVenta
                     {
                         throw new Exception($"Producto no encontrado, código {detalle.IdProducto}");
                     }
-                    if(productoEncontrado.Stock < detalle.Cantidad)
+                    if (productoEncontrado.Stock < detalle.Cantidad)
                     {
                         throw new Exception($"Producto sin stock, código {detalle.IdProducto}");
                     }
-                    detalle.Precio = productoEncontrado.PrecioUnitario;   
+                    detalle.Precio = productoEncontrado.PrecioUnitario;
                 }
-                foreach (var detalle in venta.Detalle)
-                {
-                    bool ok = await _stocksService.ActualizarStock(detalle.IdProducto, detalle.Cantidad) == true ? 
-                        (await _productoRepository.ModificarStock(detalle.IdProducto, detalle.Cantidad) == true) ? 
-                        true : throw new Exception($"Error actualizando stock (SQL), código {detalle.IdProducto}") :
-                        throw new Exception($"Error actualizando stock (Mongo DB), código {detalle.IdProducto}");
-                }
-                response = await _ventaRepository.Registrar(venta) == true ? 
-                    (await _pagoService.RealizarPago(_mapper.Map<Pago>(request.Pago), venta.IdVenta, venta.Monto, cancellationToken) == true ? 
-                    new SuccessResult() : new FailureResult()) : new FailureResult();
+                //foreach (var detalle in venta.Detalle)
+                //{
+                //    bool ok = await _stocksService.ActualizarStock(detalle.IdProducto, detalle.Cantidad) == true ? 
+                //        (await _productoRepository.ModificarStock(detalle.IdProducto, detalle.Cantidad) == true) ? 
+                //        true : throw new Exception($"Error actualizando stock (SQL), código {detalle.IdProducto}") :
+                //        throw new Exception($"Error actualizando stock (Mongo DB), código {detalle.IdProducto}");
+                //}
+                //response = await _ventaRepository.Registrar(venta) == true ? 
+                //    (await _pagoService.RealizarPago(_mapper.Map<Pago>(request.Pago), venta.IdVenta, venta.Monto, cancellationToken) == true ? 
+                //    new SuccessResult() : new FailureResult()) : new FailureResult();
 
                 if (response.HasSucceeded)
                 {
@@ -85,7 +77,8 @@ namespace Venta.Application.CasosUso.AdministrarVentas.RegistrarVenta
                     entregasRequest.IdVenta = venta.IdVenta;
                     entregasRequest.Fecha = venta.Fecha;
                     var cliente = await _clienteRepository.Consultar(venta.IdCliente);
-                    if(cliente != null ) {
+                    if (cliente != null)
+                    {
                         entregasRequest.Nombre = cliente.Nombre + " " + cliente.Apellidos;
                         RegistrarDestinoRequest destinoRequest = new();
                         destinoRequest.Ciudad = cliente.Ciudad;
@@ -108,13 +101,13 @@ namespace Venta.Application.CasosUso.AdministrarVentas.RegistrarVenta
                     entregasRequest.Productos = listDetalleRequest.AsEnumerable();
 
                     //Publicar la información en la cola de Kafka
-                    var ventaSerialize = JsonConvert.SerializeObject(entregasRequest, Formatting.Indented,
-                    new JsonSerializerSettings()
-                    {
-                        ReferenceLoopHandling = ReferenceLoopHandling.Ignore
-                    }
-                    );
-                    await _eventSender.PublishAsync("venta", ventaSerialize, cancellationToken);
+                    //var ventaSerialize = JsonConvert.SerializeObject(entregasRequest, Formatting.Indented,
+                    //new JsonSerializerSettings()
+                    //{
+                    //    ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                    //}
+                    //);
+                    //await _eventSender.PublishAsync("venta", ventaSerialize, cancellationToken);
                     return new SuccessResult();
                 }
                 else
