@@ -1,6 +1,8 @@
 ﻿using AutoMapper;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
+using Venta.API.Models;
 using Venta.Application.CasosUso.AdministrarEntregas.RegistrarEntregas;
 using Venta.Application.Common;
 using Venta.Domain.Models;
@@ -47,6 +49,7 @@ namespace Venta.Application.CasosUso.AdministrarVentas.RegistrarVenta
 
                 var productsWithoutEncryption = await _ventaRepository.Get();
 
+                //Valida existencia de producto y stock
                 foreach (var detalle in venta.Detalle)
                 {
                     var productoEncontrado = await _productoRepository.Consultar(detalle.IdProducto);
@@ -60,16 +63,20 @@ namespace Venta.Application.CasosUso.AdministrarVentas.RegistrarVenta
                     }
                     detalle.Precio = productoEncontrado.PrecioUnitario;
                 }
-                //foreach (var detalle in venta.Detalle)
-                //{
-                //    bool ok = await _stocksService.ActualizarStock(detalle.IdProducto, detalle.Cantidad) == true ? 
-                //        (await _productoRepository.ModificarStock(detalle.IdProducto, detalle.Cantidad) == true) ? 
-                //        true : throw new Exception($"Error actualizando stock (SQL), código {detalle.IdProducto}") :
-                //        throw new Exception($"Error actualizando stock (Mongo DB), código {detalle.IdProducto}");
-                //}
-                //response = await _ventaRepository.Registrar(venta) == true ? 
-                //    (await _pagoService.RealizarPago(_mapper.Map<Pago>(request.Pago), venta.IdVenta, venta.Monto, cancellationToken) == true ? 
-                //    new SuccessResult() : new FailureResult()) : new FailureResult();
+                //Actualiza stocks en locales
+
+                foreach (var detalle in venta.Detalle)
+                {
+                    bool ok = await _stocksService.ActualizarStock(detalle.IdProducto, detalle.Cantidad) == true ?
+                        (await _productoRepository.ModificarStock(detalle.IdProducto, detalle.Cantidad) == true) ?
+                        true : throw new Exception($"Error actualizando stock (SQL), código {detalle.IdProducto}") :
+                        throw new Exception($"Error actualizando stock (Mongo DB), código {detalle.IdProducto}");
+                }
+                //Registra venta y 
+                response = await _ventaRepository.Registrar(venta) == true ?
+                    (await _pagoService.RealizarPago(_mapper.Map<Pago>(request.Pago), venta.IdVenta, venta.Monto, cancellationToken) == true ?
+                    new SuccessResult() : new FailureResult()) : new FailureResult();
+
 
                 if (response.HasSucceeded)
                 {

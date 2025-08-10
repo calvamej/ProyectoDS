@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Venta.API.Models;
 using Venta.API.Security;
 
@@ -8,6 +9,7 @@ namespace Venta.API.Controllers
 {
     namespace Venta.Api.Controllers
     {
+        [EnableRateLimiting("AuthPolicy")]
         [Route("api/[controller]")]
         [ApiController]
         public class AuthController : Controller

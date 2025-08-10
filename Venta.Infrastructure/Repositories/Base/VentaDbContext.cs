@@ -1,9 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Venta.API.Models;
 using Venta.Domain.Models;
 
 namespace Venta.Infrastructure.Repositories.Base
@@ -30,7 +32,7 @@ namespace Venta.Infrastructure.Repositories.Base
 
         public virtual DbSet<Domain.Models.Venta> Ventas { get; set; }
         public virtual DbSet<Domain.Models.Pago> Pagos { get; set; }
-
+        public DbSet<AuditLog> AuditLogs { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -102,6 +104,39 @@ namespace Venta.Infrastructure.Repositories.Base
 
 
         }
-
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            var modifiedEntities = ChangeTracker.Entries()
+                .Where(e => e.State == EntityState.Added
+                || e.State == EntityState.Modified
+                || e.State == EntityState.Deleted)
+                .ToList();
+            foreach (var modifiedEntity in modifiedEntities)
+            {
+                var auditLog = new AuditLog
+                {
+                    EntityName = modifiedEntity.Entity.GetType().Name,
+                    Action = modifiedEntity.State.ToString(),
+                    Timestamp = DateTime.UtcNow,
+                    Changes = GetChanges(modifiedEntity)
+                };
+                AuditLogs.Add(auditLog);
+            }
+            return base.SaveChangesAsync(cancellationToken);
+        }
+        private static string GetChanges(EntityEntry entity)
+        {
+            var changes = new StringBuilder();
+            foreach (var property in entity.OriginalValues.Properties)
+            {
+                var originalValue = entity.OriginalValues[property];
+                var currentValue = entity.CurrentValues[property];
+                if (!Equals(originalValue, currentValue))
+                {
+                    changes.AppendLine($"{property.Name}: From '{originalValue}' to '{currentValue}'");
+                }
+            }
+            return changes.ToString();
+        }
     }
 }

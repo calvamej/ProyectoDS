@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.DataProtection;
 using StackExchange.Redis;
+using Microsoft.AspNetCore.RateLimiting;
 using Steeltoe.Extensions.Configuration.ConfigServer;
 using Venta.Api.Middleware;
 using Venta.API.Configurations;
@@ -78,7 +79,24 @@ var connectionString = builder.Configuration["dbVenta-cnx"];
 builder.Services.AddInfraestructure(builder.Configuration);
 builder.Services.AddAthenticationByJWT(builder.Configuration);
 builder.Services.AddHealthCheckConfiguration(builder.Configuration);
+//Rate limit
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddFixedWindowLimiter("AuthPolicy", configure =>
+    {
+        configure.PermitLimit = 5;
+        configure.Window = TimeSpan.FromMinutes(1);
+        configure.QueueLimit = 0;
+    });
 
+    options.AddSlidingWindowLimiter("ApiPolicy", configure =>
+    {
+        configure.PermitLimit = 100;
+        configure.Window = TimeSpan.FromMinutes(1);
+        configure.SegmentsPerWindow = 4;
+    });
+});
 // 0) Hide server banner
 builder.WebHost.ConfigureKestrel(o => o.AddServerHeader = false);
 
@@ -104,7 +122,7 @@ app.Use(async (ctx, next) =>
     // Stop MIME sniffing (safe for JSON)
     h["X-Content-Type-Options"] = "nosniff";
 
-    // Don’t leak referrers (API doesn’t need them)
+    // Donï¿½t leak referrers (API doesnï¿½t need them)
     h["Referrer-Policy"] = "no-referrer";
 
     // Optional: block framing (harmless for APIs)
@@ -121,7 +139,7 @@ app.Use(async (ctx, next) =>
 
     await next();
 });
-
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseHealthCheckConfiguration();
