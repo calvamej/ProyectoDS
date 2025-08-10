@@ -1,17 +1,13 @@
 ﻿using Microsoft.Extensions.Configuration;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Venta.CrossCutting.Configs
 {
     public class AppConfiguration
     {
         private readonly IConfiguration _configInfo;
-        public AppConfiguration(IConfiguration configInfo) {
+
+        public AppConfiguration(IConfiguration configInfo)
+        {
             _configInfo = configInfo;
         }
 
@@ -32,6 +28,7 @@ namespace Venta.CrossCutting.Configs
             }
             private set { }
         }
+
         public string LogMongoServerDB
         {
             get
@@ -49,6 +46,7 @@ namespace Venta.CrossCutting.Configs
             }
             private set { }
         }
+
         public string UrlBaseServicioPago
         {
             get
@@ -57,6 +55,7 @@ namespace Venta.CrossCutting.Configs
             }
             private set { }
         }
+
         public string BootstrapServers_Kafka
         {
             get
