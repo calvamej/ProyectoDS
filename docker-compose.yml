@@ -1,4 +1,11 @@
 services:
+  config-server:
+        ports:
+            - 8888:8888
+        image: steeltoeoss/config-server
+        command: --spring.cloud.config.server.git.default-label=main
+            --spring.cloud.config.server.git.uri=https://github.com/calvamej/app-configuration.git
+            
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04
     container_name: sqlserver
