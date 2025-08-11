@@ -1,20 +1,21 @@
 # ProyectoDS - Arquitectura de Aplicación Segura
 
 ## 🎯 Visión General
-ProyectoDS es una aplicación de e-commerce para compra y venta de productos de la empresa, que implementa principios de seguridad desde el diseño (Secure-by-Design). Representa la materialización de años de evolución en mejores prácticas de seguridad en la nube.
+RandomStore es una aplicación e-commerce para compra y venta de productos, que implementa principios de seguridad desde el diseño (Secure-by-Design). Representa la materialización de años de evolución en mejores prácticas de seguridad en la nube.
 
 ## 🏛️ Arquitectura de Alto Nivel
 
+### Nota: Para efectos del proyecto solo se considera el API "Ventas" de la aplicación (que cuenta con aproximadamente 5 APIs adicionales, tópicos Kafka y Bases de Datos no SQL)
+
 ### Componentes Principales:
-- **Web Application (ASP.NET Core MVC)**: Frontend y API con seguridad integrada
+- **Web Application**: API con seguridad integrada + Front
 - **Azure AD**: Gestión de identidad y autenticación empresarial  
 - **Azure Key Vault**: Gestión de secretos y certificados con HSM
-- **Azure SQL Database**: Almacenamiento de datos con cifrado TDE
-- **Application Insights**: Monitoreo y auditoría forense completa
+- **SQL Database**: Almacenamiento de datos con cifrado TDE
 
 ### Flujo de Datos Seguro:
 ```
-Usuario → Azure AD (OAuth 2.0 + MFA) → ASP.NET Core (HTTPS + CSP) → Key Vault (Secretos) → Azure SQL (TDE)
+Usuario → Azure AD (OAuth 2.0 + JWT) → ASP.NET Core (HTTPS + CSP) → Key Vault (Secretos) → Azure SQL (TDE)
 ```
 
 **Principio Clave**: Cada comunicación entre componentes está cifrada y autenticada. Incluso si alguien captura el tráfico de red, no pueden usarlo para impersonar usuarios o acceder a datos.
@@ -23,32 +24,19 @@ Usuario → Azure AD (OAuth 2.0 + MFA) → ASP.NET Core (HTTPS + CSP) → Key Va
 
 ### Roles de Usuario (Principio de Menor Privilegio):
 
-## Nota: 
-Para el primer alcance solo se cuenta con el Rol Cliente.
-
 #### **Cliente**
-- **Permisos**: Gestión de perfil personal, compras, historial de pedidos
-- **Restricciones**: Nunca puede ver datos de otros clientes, acceder a funciones administrativas, o ver información interna como precios de costo
-
-#### **Supervisor**  
-- **Permisos**: Gestión de catálogo de productos, reportes de ventas, administración de inventario
-- **Restricciones**: No pueden acceder a datos personales de clientes, información de pagos, o funciones de administración del sistema
-
-#### **Administrador**
-- **Permisos**: Control completo del sistema con auditoría total
-- **Principio**: Poder con responsabilidad - incluso administradores no pueden realizar acciones críticas sin dejar rastros auditables
+- **Permisos**: Registrar Venta.
+- **Restricciones**: Nunca puede ver datos de otros clientes, acceder a funciones administrativas, o ver información interna.
 
 ### Capas de Protección (Defense in Depth):
 
 #### **Capa 1 - Network**
 - **HTTPS Forzado**: Toda comunicación cifrada usando estándares bancarios
-- **WAF (Web Application Firewall)**: Filtrado automático de ataques comunes
-- **CSP (Content Security Policy)**: Sistema inmunológico que rechaza código extraño
+- **WAF (Web Application Firewall)**: Filtrado automático de ataques comunes (no forma parte del alcance del proyecto).
+- **CSP (Content Security Policy)**: Sistema inmunológico que rechaza código extraño (no forma parte del alcance del proyecto).
 
 #### **Capa 2 - Identity**  
-- **Azure AD con MFA**: Requiere tanto contraseña como acceso físico al teléfono
-- **Single Sign-On (SSO)**: Una sola autenticación para múltiples aplicaciones
-- **Gestión de identidad empresarial**: Control centralizado de accesos
+- **Azure AD + JWT**: Autenticación mediante Microsoft Entra ID + JWT.
 
 #### **Capa 3 - Application**
 - **Validación de entrada**: Datos maliciosos detectados antes de causar daño  
@@ -62,7 +50,7 @@ Para el primer alcance solo se cuenta con el Rol Cliente.
 
 #### **Capa 5 - Monitoring**
 - **Logging forense**: Cada acción significativa registrada
-- **Alertas automáticas**: Detección de actividad sospechosa en tiempo real
+- **Alertas automáticas**: Detección de actividad sospechosa en tiempo real (no forma parte del alcance del proyecto)
 - **Auditoría completa**: Trazabilidad que resiste escrutinio legal
 
 ## 📊 Análisis de Amenazas (STRIDE)
@@ -147,20 +135,17 @@ CREATE TABLE [dbo].[Venta](
 
 ```
 
-#### PROXIMAMENTE A IMPLEMENTAR EN NUEVAS MEJORAS, LAS TABLAS DE AUDITORIA Y USUARIOS CON DISTINTOS ROLES, ACTUALMENTE SOLO TENEMOS TABLA CLIENTES EN GENERAL
+#### Tabla de Auditoría
 
 #### **AuditLogs**
 ```sql
-CREATE TABLE AuditLogs (
-    Id BIGINT IDENTITY(1,1) PRIMARY KEY,
-    UserId NVARCHAR(50) NOT NULL,              -- Quién ejecutó la acción
-    Action NVARCHAR(50) NOT NULL,              -- Qué acción se realizó  
-    EntityType NVARCHAR(50),                   -- Qué tipo de objeto fue afectado
-    EntityId NVARCHAR(50),                     -- Cuál objeto específico
-    Changes NVARCHAR(MAX),                     -- Qué cambió exactamente (JSON)
-    Timestamp DATETIME2 DEFAULT GETDATE(),    -- Cuándo ocurrió
-    IpAddress NVARCHAR(45),                    -- Desde dónde se originó
-    UserAgent NVARCHAR(500)                    -- Qué navegador/aplicación
+CREATE TABLE [dbo].[AuditLog](
+	[Id] [int] IDENTITY(1,1) NOT NULL,
+	[UserEmail] [varchar](100),
+	[EntityName] [varchar](100) NOT NULL,
+	[Action] [varchar](100) NOT NULL,
+	[Timestamp] [datetime],
+	[Changes] [varchar](500) NOT NULL,
 );
 ```
 
@@ -173,16 +158,16 @@ CREATE TABLE AuditLogs (
 - **Datos de auditoría**: Almacenados con permisos de solo-inserción
 
 #### **Auditoría Automática**
-- **Campos temporales**: CreatedAt, UpdatedAt, UpdatedBy para cada tabla crítica
+- **Campos temporales**: UpdatedAt, UpdatedBy para cada tabla crítica
 - **Versionado de datos**: Versiones históricas para detectar cambios no autorizados
-- **Índices de seguridad**: Optimizados para consultas de auditoría rápidas incluso con millones de registros
+- **Índices de seguridad**: Optimizados para consultas de auditoría rápidas incluso con millones de registros (no forma parte del alcance del proyecto)
 
 #### **Integridad Referencial**
 - **Claves foráneas**: Vinculación entre usuarios y acciones para trazabilidad completa
 - **Constraints**: Validación a nivel de base de datos como última línea de defensa
 - **Triggers de auditoría**: Registro automático de cambios sin dependencia del código de aplicación
 
-## 🚀 Patrones de Despliegue Seguro
+## 🚀 Patrones de Despliegue Seguro (no forma parte del alcance)
 
 ### Ambientes Separados
 - **Desarrollo**: Key Vault propio, datos de prueba, logging extendido

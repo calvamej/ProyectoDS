@@ -1,7 +1,7 @@
 # ProyectoDS - Revisión de Seguridad y Análisis de Amenazas
 
 ## 🎯 Objetivo de la Revisión
-Este documento proporciona un análisis comprensivo de seguridad para ProyectoDS, siguiendo metodologías empresariales usadas por equipos de seguridad de otras organizaciones.
+Este documento proporciona un análisis comprehensivo de seguridad para SecureShop, siguiendo metodologías empresariales usadas por equipos de seguridad de organizaciones Fortune 500.
 
 ## 📊 Metodología STRIDE - Análisis Detallado
 
@@ -14,7 +14,7 @@ Este documento proporciona un análisis comprensivo de seguridad para ProyectoDS
 - Falsificación de identidad de aplicación
 
 #### **Controles Implementados**
-1. **Azure AD con MFA Obligatorio**
+1. **Azure AD con MFA Obligatorio** (no forma parte del alcance del proyecto)
    - Requiere factor adicional más allá de contraseña
    - Resistente a ataques de credential stuffing
    - Políticas de acceso condicional basadas en riesgo
@@ -27,6 +27,10 @@ Este documento proporciona un análisis comprensivo de seguridad para ProyectoDS
 3. **Validación de Audiencia de Tokens**
    - Verificación que tokens son para nuestra aplicación específicamente
    - Previene ataques de replay entre aplicaciones
+
+#### **Casos de Estudio Preventivos**
+- **Twitter Hack (2020)**: Atacantes usaron credenciales robadas. Nuestro MFA habría bloqueado el acceso.
+- **LastPass (2022)**: Vault master password comprometida. Azure AD elimina dependencia de contraseñas únicas.
 
 ---
 
@@ -54,6 +58,25 @@ Este documento proporciona un análisis comprensivo de seguridad para ProyectoDS
    - Keys gestionadas por Azure Key Vault
    - Protección contra acceso físico a discos
 
+#### **Validación Continua**
+```sql
+-- Trigger para detectar modificaciones no autorizadas
+CREATE TRIGGER tr_ProductTamperDetection
+ON Producto AFTER UPDATE
+AS
+BEGIN
+    INSERT INTO AuditLog (
+        EntityName, Id, UserEmail, 
+        [Changes], Timestamp
+    )
+    SELECT 'Producto', i.Id, SYSTEM_USER,
+           'Old Values: ' + (SELECT * FROM deleted d WHERE d.Id = i.Id FOR JSON AUTO) + 
+		   'New Values: ' + (SELECT * FROM i FOR JSON AUTO),
+           GETDATE()
+    FROM inserted i
+END
+```
+
 ---
 
 ### 🚫 R - Repudiation (Repudio/Negación)
@@ -79,6 +102,45 @@ Este documento proporciona un análisis comprensivo de seguridad para ProyectoDS
    - Certificados x.509 almacenados en Key Vault
    - Firma digital de documentos y transacciones críticas
    - Verificación criptográfica de integridad
+
+#### **Implementación de Auditoría**
+```csharp
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            var modifiedEntities = ChangeTracker.Entries()
+                .Where(e => e.State == EntityState.Added
+                || e.State == EntityState.Modified
+                || e.State == EntityState.Deleted)
+                .ToList();
+            foreach (var modifiedEntity in modifiedEntities)
+            {
+                var auditLog = new AuditLog
+                {
+                    EntityName = modifiedEntity.Entity.GetType().Name,
+                    Action = modifiedEntity.State.ToString(),
+                    Timestamp = DateTime.UtcNow,
+                    Changes = GetChanges(modifiedEntity)
+                };
+                AuditLogs.Add(auditLog);
+            }
+            return base.SaveChangesAsync(cancellationToken);
+        }
+        private static string GetChanges(EntityEntry entity)
+        {
+            var changes = new StringBuilder();
+            foreach (var property in entity.OriginalValues.Properties)
+            {
+                var originalValue = entity.OriginalValues[property];
+                var currentValue = entity.CurrentValues[property];
+                if (!Equals(originalValue, currentValue))
+                {
+                    changes.AppendLine($"{property.Name}: From '{originalValue}' to '{currentValue}'");
+                }
+            }
+            return changes.ToString();
+        }
+}
+```
 
 ---
 
@@ -134,9 +196,30 @@ Este documento proporciona un análisis comprensivo de seguridad para ProyectoDS
    - Caching estratégico con Redis
    - CDN para contenido estático
 
+#### **Configuración de Rate Limiting**
+```csharp
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddFixedWindowLimiter("AuthPolicy", configure =>
+    {
+        configure.PermitLimit = 5;
+        configure.Window = TimeSpan.FromMinutes(1);
+        configure.QueueLimit = 0;
+    });
+
+    options.AddSlidingWindowLimiter("ApiPolicy", configure =>
+    {
+        configure.PermitLimit = 100;
+        configure.Window = TimeSpan.FromMinutes(1);
+        configure.SegmentsPerWindow = 4;
+    });
+});
+```
+
 ---
 
-### ⬆️ E - Elevation of Privilege (Escalación de Privilegios)
+### ⬆️ E - Elevation of Privilege (Escalación de Privilegios) - (No forma parte del proyecto)
 
 #### **Vectores de Amenaza**
 - Explotación de vulnerabilidades para obtener permisos administrativos
@@ -202,3 +285,5 @@ Este documento proporciona un análisis comprensivo de seguridad para ProyectoDS
 - **Compliance Rate**: 100% en auditorías regulatorias
 
 ---
+
+> **📌 Nota Crítica**: Esta revisión de seguridad no es un documento estático. Debe actualizarse cada vez que se agregan nuevas funcionalidades, se descubren nuevas amenazas, o cambian los requisitos de cumplimiento. La seguridad es un proceso continuo, no un estado final.
