@@ -1,13 +1,7 @@
-# Proyecto final Grupo 4
+Proyecto final Grupo 4
 
-Integrantes: 
-
-César Alva Mejía
-
-Walberth Gutiérrez
-
-Carlos Zavala
-
-Jhon Huaringa
-
-Cristhian Suncion
+    César Alva Mejía
+    Walberth Gutiérrez
+    Carlos Zavala
+    Cristhian Suncion
+    Jhon Huaringa
